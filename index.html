@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Textbook Companion</title>
+<meta name="theme-color" content="#14161B" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Textbook" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon.png" />
+<link rel="icon" href="icon.png" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<style>
+  :root {
+    --bg: #14161B;
+    --surface: #1C1F26;
+    --surface-raised: #242832;
+    --surface-hover: #2C313C;
+    --ink: #EDEBE6;
+    --ink-soft: #9B9E9B;
+    --ink-faint: #6B6E75;
+    --accent: #5FAE8C;
+    --accent-strong: #74C4A0;
+    --accent-contrast: #0D1410;
+    --rust: #D9915E;
+    --rust-contrast: #241407;
+    --line: #323844;
+    --line-soft: #262B34;
+    --warning: #E3A857;
+    --warning-bg: #2E2417;
+    --danger: #E0796B;
+    --danger-bg: #2E1B18;
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .serif { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; }
+  #app { display: flex; flex-direction: column; height: 100vh; max-width: 560px; margin: 0 auto; background: var(--bg); position: relative; }
+  #sidebar-col, #content-col { display: contents; } /* no-op on mobile — same DOM, same layout as before */
+
+  @media (min-width: 860px) {
+    #app { flex-direction: row; max-width: 1100px; height: 100vh; box-shadow: var(--shadow); }
+    #sidebar-col {
+      display: flex; flex-direction: column; width: 300px; flex-shrink: 0;
+      height: 100%; border-right: 1px solid var(--line-soft); overflow-y: auto;
+    }
+    #content-col { display: flex; flex-direction: column; flex: 1; height: 100%; min-width: 0; }
+    .shelf { flex-direction: column; overflow-x: visible; overflow-y: visible; }
+    .chip, .chip-wrap { width: 100%; max-width: none; }
+    .chip-label { text-align: left; }
+    main { max-width: 720px; margin: 0 auto; width: 100%; }
+    footer { display: flex; justify-content: center; }
+    footer .composer { max-width: 720px; width: 100%; }
+  }
+  header { padding: 14px 20px 10px; border-bottom: 1px solid var(--line-soft); background: var(--bg); flex-shrink: 0; }
+  header h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -0.01em; background: linear-gradient(135deg, var(--ink) 0%, var(--accent-strong) 130%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  header p { margin: 2px 0 0; font-size: 12px; color: var(--ink-soft); }
+  .shelf { display: flex; gap: 8px; padding: 14px 20px; overflow-x: auto; border-bottom: 1px solid var(--line-soft); flex-shrink: 0; -webkit-overflow-scrolling: touch; }
+  .shelf::-webkit-scrollbar { display: none; }
+  .chip-wrap { flex-shrink: 0; display: flex; align-items: stretch; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); max-width: 190px; overflow: hidden; transition: background 0.15s, border-color 0.15s; }
+  .chip-wrap:hover { background: var(--surface-hover); }
+  .chip-wrap.active { background: var(--accent); border-color: var(--accent); }
+  .chip-wrap.active:hover { background: var(--accent-strong); }
+  .chip-label { flex: 1; min-width: 0; border: none; background: transparent; color: var(--ink); font-size: 13.5px; padding: 9px 4px 9px 15px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+  .chip-wrap.active .chip-label { color: var(--accent-contrast); font-weight: 600; }
+  .chip-remove { flex-shrink: 0; border: none; background: transparent; color: var(--ink-faint); font-size: 15px; line-height: 1; padding: 0 12px 0 6px; cursor: pointer; }
+  .chip-wrap.active .chip-remove { color: var(--accent-contrast); opacity: 0.75; }
+  .chip-remove:hover { color: var(--danger); }
+  .chip { flex-shrink: 0; padding: 9px 15px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 13.5px; cursor: pointer; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, border-color 0.15s; }
+  .chip:hover { background: var(--surface-hover); }
+  .chip.active { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); font-weight: 600; }
+  .chip.active:hover { background: var(--accent-strong); }
+  .chip.add { border-style: dashed; color: var(--ink-soft); background: transparent; display: inline-flex; align-items: center; }
+  .chip:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+  #hidden-file-input { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .empty-state label.chip-btn { background: var(--accent); color: var(--accent-contrast); border: none; padding: 11px 20px; border-radius: 24px; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-block; box-shadow: var(--shadow); }
+  main { flex: 1; overflow-y: auto; padding: 20px 20px 8px; display: flex; flex-direction: column; gap: 4px; }
+  .empty-state { margin: auto; text-align: center; max-width: 340px; color: var(--ink-soft); }
+  .empty-state .mark { font-size: 34px; margin-bottom: 6px; color: var(--accent-strong); }
+  .empty-state h2 { font-size: 18px; color: var(--ink); margin: 0 0 6px; }
+  .empty-state p { font-size: 13.5px; line-height: 1.5; margin: 0 0 16px; }
+  .empty-state button { background: var(--accent); color: var(--accent-contrast); border: none; padding: 11px 20px; border-radius: 24px; font-size: 14px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow); }
+  .msg-block { display: flex; flex-direction: column; margin-bottom: 12px; }
+  .msg-block.user { align-items: flex-end; }
+  .msg-block.assistant { align-items: flex-start; }
+  .bubble { max-width: 84%; padding: 12px 15px; border-radius: 14px; font-size: 14.5px; line-height: 1.55; white-space: pre-wrap; }
+  .bubble.user { background: var(--rust); color: var(--rust-contrast); font-weight: 500; border-bottom-right-radius: 3px; }
+  .bubble.assistant { background: var(--surface); border: 1px solid var(--line-soft); border-bottom-left-radius: 3px; box-shadow: var(--shadow); }
+  .bubble.system-note { align-self: center; background: var(--surface-raised); color: var(--ink-soft); font-size: 12px; font-style: italic; max-width: 92%; text-align: center; margin: 0 auto 12px; padding: 8px 14px; border-radius: 10px; }
+  .bubble.error { background: var(--danger-bg); border: 1px solid var(--danger); color: var(--danger); }
+  .bubble.thinking { background: var(--surface); border: 1px solid var(--line-soft); color: var(--ink-soft); font-style: italic; }
+  .sources-line { font-size: 11.5px; color: var(--ink-faint); margin-top: 4px; padding: 0 4px; }
+  .sources-line.full { color: var(--accent-strong); }
+  .sources-line.partial { color: var(--warning); font-weight: 600; }
+  footer { flex-shrink: 0; border-top: 1px solid var(--line-soft); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--bg); }
+  .composer { display: flex; align-items: flex-end; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 6px 6px 6px 16px; }
+  .composer:focus-within { border-color: var(--accent); }
+  .composer textarea { flex: 1; border: none; background: transparent; resize: none; font-size: 15px; font-family: inherit; color: var(--ink); max-height: 90px; padding: 9px 0; }
+  .composer textarea::placeholder { color: var(--ink-faint); }
+  .composer textarea:focus { outline: none; }
+  .composer button { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--accent); color: var(--accent-contrast); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+  .composer button:hover:not(:disabled) { background: var(--accent-strong); }
+  .composer button:disabled { background: var(--surface-raised); color: var(--ink-faint); cursor: default; }
+  .upload-progress { align-self: center; font-size: 13px; color: var(--ink-soft); padding: 10px 16px; border: 1px dashed var(--line); border-radius: 10px; background: var(--surface); margin: auto; text-align: center; }
+  .chip-image-btn { flex-shrink: 0; border: none; background: transparent; color: var(--ink-faint); font-size: 13px; line-height: 1; padding: 0 4px 0 12px; cursor: pointer; }
+  .chip-wrap.active .chip-image-btn { color: var(--accent-contrast); opacity: 0.85; }
+  .chip-image-btn:hover { color: var(--accent-strong); }
+
+  #image-picker { border-bottom: 1px solid var(--line-soft); background: var(--surface); padding: 16px 20px; }
+  .rename-row { margin: 0 0 12px; }
+  .rename-input { width: 100%; background: var(--surface-raised); border: 1px solid var(--line); color: var(--ink); font-size: 14.5px; font-weight: 600; padding: 8px 12px; border-radius: 8px; font-family: inherit; }
+  .rename-input:focus { outline: none; border-color: var(--accent); }
+  #image-picker h3 { margin: 0 0 4px; font-size: 14.5px; color: var(--ink); }
+  #image-picker p.hint { margin: 0 0 10px; font-size: 12px; color: var(--ink-soft); }
+  .picker-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13.5px; border-bottom: 1px solid var(--line-soft); }
+  .picker-row input[type="checkbox"] { width: 17px; height: 17px; flex-shrink: 0; accent-color: var(--accent); }
+  .picker-row label { flex: 1; }
+  .picker-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .picker-actions button { border: none; padding: 9px 16px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 500; }
+  .picker-actions button.primary { background: var(--accent); color: var(--accent-contrast); }
+  .picker-actions button.secondary { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+  .picker-select-all { font-size: 12.5px; color: var(--accent-strong); text-decoration: underline; background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar-col">
+    <header>
+      <h1 class="serif">Textbook Companion</h1>
+      <p>Ask your textbook questions</p>
+    </header>
+
+    <div class="shelf" id="shelf"></div>
+    <input type="file" id="hidden-file-input" accept="application/pdf" tabindex="-1" />
+
+    <div id="image-picker" style="display:none;"></div>
+  </div>
+
+  <div id="content-col">
+    <main id="main"></main>
+
+    <footer>
+      <div class="composer">
+        <textarea id="question-input" rows="1" placeholder="Ask about the text..." disabled></textarea>
+        <button id="send-btn" disabled aria-label="Send question">&#10148;</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+// ============================================================================
+// CONFIG — fill these in once your backend is deployed (see README.md)
+// ============================================================================
+const BACKEND_URL = 'https://YOUR-BACKEND-URL.onrender.com'; // no trailing slash
+const APP_SECRET = 'PASTE-THE-SAME-APP_SECRET-YOU-SET-ON-RENDER-HERE';
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Storage shim: replaces the Claude-artifact-only `window.storage` with a real
+// browser database (IndexedDB), so the app works in any normal browser/phone.
+// Same method names and shapes as before, so nothing else in the app below
+// had to change — get() rejects if the key doesn't exist, matching how the
+// original artifact storage behaved (the rest of the code already expects
+// and handles that via try/catch).
+// ----------------------------------------------------------------------------
+window.storage = (function () {
+  const DB_NAME = 'textbook-companion-db';
+  const STORE_NAME = 'kv';
+  let dbPromise = null;
+
+  function openDb() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore(STORE_NAME, { keyPath: 'key' });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return dbPromise;
+  }
+
+  async function get(key) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const req = tx.objectStore(STORE_NAME).get(key);
+      req.onsuccess = () => {
+        if (!req.result) reject(new Error('Key not found: ' + key));
+        else resolve({ key, value: req.result.value, shared: false });
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function set(key, value) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).put({ key, value });
+      tx.oncomplete = () => resolve({ key, value, shared: false });
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function del(key) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(key);
+      tx.oncomplete = () => resolve({ key, deleted: true, shared: false });
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  return { get, set, delete: del };
+})();
+
+(function () {
+  const shelfEl = document.getElementById('shelf');
+  const mainEl = document.getElementById('main');
+  const fileInput = document.getElementById('hidden-file-input');
+  const questionInput = document.getElementById('question-input');
+  const sendBtn = document.getElementById('send-btn');
+
+  let books = [];           // [{id, title, chunkCount, pageCount}]
+  let currentBookId = null;
+  let messages = {};        // bookId -> [{role, text, sources}]
+  let indexCache = {};      // bookId -> {chunks, chunkTokens, df, n}
+  let isBusy = false;
+
+  const STORE_PIECE_SIZE = 3500000; // chars per stored piece, safely under 5MB cap
+  const STOPWORDS = new Set(['the','and','for','are','but','not','you','all','can','has','had','was','were','with','this','that','from','have','they','their','what','which','when','where','why','how','who','does','did','about','into','than','then','also','been','being','such','some','more','most','one','two','its','his','her','him','she','him','our','your','out','over','under','only','just','both','each','other','these','those','will','would','could','should','because','while','upon','thus','however','give','some','please','use','using','chapter','block','unit','section','page','pages','textbook','essay','quote','quotes','quotation','quotations','number','numbers','could','would','tell']);
+
+  // ---------- storage helpers ----------
+
+  async function loadManifest() {
+    try {
+      const res = await window.storage.get('books-manifest', false);
+      books = res && res.value ? JSON.parse(res.value) : [];
+    } catch (e) { books = []; }
+  }
+
+  async function saveManifest() {
+    await window.storage.set('books-manifest', JSON.stringify(books), false);
+  }
+
+  async function loadMessages(bookId) {
+    if (messages[bookId]) return messages[bookId];
+    try {
+      const res = await window.storage.get('chat:' + bookId, false);
+      messages[bookId] = res && res.value ? JSON.parse(res.value) : [];
+    } catch (e) { messages[bookId] = []; }
+    return messages[bookId];
+  }
+
+  async function saveMessages(bookId) {
+    const list = (messages[bookId] || []).slice(-40);
+    messages[bookId] = list;
+    try { await window.storage.set('chat:' + bookId, JSON.stringify(list), false); }
+    catch (e) { /* non-fatal */ }
+  }
+
+  async function storeChunks(id, chunksArray) {
+    const json = JSON.stringify(chunksArray);
+    const pieceCount = Math.max(1, Math.ceil(json.length / STORE_PIECE_SIZE));
+    for (let i = 0; i < pieceCount; i++) {
+      const piece = json.slice(i * STORE_PIECE_SIZE, (i + 1) * STORE_PIECE_SIZE);
+      const result = await window.storage.set('book:' + id + ':chunk:' + i, piece, false);
+      if (!result) throw new Error('Storage failed while saving part ' + (i + 1));
+    }
+    return pieceCount;
+  }
+
+  async function loadChunks(id, chunkCount) {
+    let full = '';
+    for (let i = 0; i < chunkCount; i++) {
+      const res = await window.storage.get('book:' + id + ':chunk:' + i, false);
+      if (!res) throw new Error('Could not load part of this book from storage.');
+      full += res.value;
+    }
+    return JSON.parse(full);
+  }
+
+  // ---------- pdf extraction ----------
+
+  function readFileAsArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Could not read that file.'));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  async function callClaudeAPI(payload, onRetry) {
+    const maxRetries = 3;
+    let attempt = 0;
+    while (true) {
+      let response;
+      try {
+        response = await fetch(BACKEND_URL + '/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-app-secret': APP_SECRET },
+          body: JSON.stringify(payload)
+        });
+      } catch (networkErr) {
+        // Most common cause on a fresh setup: BACKEND_URL is still the placeholder, the
+        // backend hasn't been deployed yet, or a free-tier server is asleep and slow to wake.
+        throw new Error('Could not reach the backend server. Check that BACKEND_URL in index.html is set correctly and the server is running.');
+      }
+      if (response.ok) return response.json();
+      if (response.status === 401) {
+        throw new Error('The backend rejected this request — APP_SECRET in index.html doesn\'t match the one set on the server.');
+      }
+      if ((response.status === 429 || response.status >= 500) && attempt < maxRetries) {
+        const waitMs = 1500 * Math.pow(2, attempt);
+        if (onRetry) onRetry(attempt + 1, maxRetries, waitMs);
+        await new Promise(r => setTimeout(r, waitMs));
+        attempt++;
+        continue;
+      }
+      throw new Error("The request didn't go through (status " + response.status + ").");
+    }
+  }
+
+  function apiText(data) {
+    return (data.content || []).map(b => b.text || '').filter(Boolean).join('\n').trim();
+  }
+
+  // For questions with no name/chapter to anchor on, guarantee full thoroughness by literally
+  // reading the whole book in sequential passes: each pass extracts anything relevant to the
+  // question, then a final pass combines every pass's notes into one answer. Slower, but every
+  // page genuinely gets read for every such question — never a relevance guess.
+  const SCAN_BATCH_TOKEN_SIZE = 50000;
+
+  function batchChunks(chunks) {
+    const batches = [];
+    let current = [];
+    let currentTokens = 0;
+    chunks.forEach(c => {
+      const t = Math.ceil(c.text.length / 4);
+      if (current.length && currentTokens + t > SCAN_BATCH_TOKEN_SIZE) {
+        batches.push(current);
+        current = [];
+        currentTokens = 0;
+      }
+      current.push(c);
+      currentTokens += t;
+    });
+    if (current.length) batches.push(current);
+    return batches;
+  }
+
+  async function fullBookScan(question, index, onProgress) {
+    const batches = batchChunks(index.chunks);
+    const notes = [];
+    for (let i = 0; i < batches.length; i++) {
+      if (onProgress) onProgress(i + 1, batches.length);
+      const batch = batches[i];
+      const excerpt = batch.map(c => '[Page ' + c.page + ']\n' + c.text).join('\n\n---\n\n');
+      const data = await callClaudeAPI({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 800,
+        system: "You are helping answer a student's question by reading one section of a longer textbook at a time. Read the excerpt below and extract anything relevant to the question, in your own words, always noting the page number for each point. If truly nothing here is relevant, reply with exactly: NOTHING RELEVANT",
+        messages: [{ role: 'user', content: "Excerpt (pages " + batch[0].page + "\u2013" + batch[batch.length - 1].page + "):\n\n" + excerpt + "\n\nQuestion: " + question }]
+      });
+      const note = apiText(data);
+      if (note && !/^NOTHING RELEVANT/i.test(note)) {
+        notes.push({ range: [batch[0].page, batch[batch.length - 1].page], note });
+      }
+    }
+    return { notes, totalPages: index.chunks.length, passCount: batches.length };
+  }
+
+  async function renderPageToImageBase64(page, scale) {
+    const viewport = page.getViewport({ scale: scale || 1.5 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas.toDataURL('image/png').split(',')[1];
+  }
+
+  async function describeImagePage(base64Png) {
+    const data = await callClaudeAPI({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 700,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: base64Png } },
+          { type: 'text', text: 'This is a page from a philosophy/religion/ethics textbook with no extractable text layer — likely a diagram, image, table, or scanned content. Transcribe and describe everything on the page in detail: any labeled diagram parts, captions, tables, quotations, or embedded text, so a student can revise from this description alone. If the page is genuinely blank or purely decorative, say so briefly.' }
+        ]
+      }]
+    });
+    return (data.content || []).map(b => b.text || '').filter(Boolean).join('\n').trim();
+  }
+
+  // Group a page's text items into visual lines (by y-position) so a contents page's layout
+  // survives extraction — needed to reliably parse "Chapter 3  Miracles  75" style ToC rows,
+  // which a plain space-joined dump of the page collapses into one unreadable run.
+  async function extractPageLines(page) {
+    const content = await page.getTextContent();
+    const lines = [];
+    let currentY = null;
+    let currentLine = [];
+    content.items.forEach(it => {
+      const y = Math.round(it.transform[5]);
+      if (currentY === null || Math.abs(y - currentY) > 2) {
+        if (currentLine.length) lines.push(currentLine.map(i => i.str).join(' ').replace(/\s+/g, ' ').trim());
+        currentLine = [it];
+        currentY = y;
+      } else {
+        currentLine.push(it);
+      }
+    });
+    if (currentLine.length) lines.push(currentLine.map(i => i.str).join(' ').replace(/\s+/g, ' ').trim());
+    return lines.filter(l => l.length > 0);
+  }
+
+  // Read the book's own contents page(s) to build a real Block/Chapter map with page numbers,
+  // instead of guessing structure from a filename or from scattered in-text mentions.
+  async function detectTableOfContents(pdf, chunks, totalPages) {
+    const candidatePages = chunks
+      .filter(c => c.page <= 25 && /content/i.test(c.text.slice(0, 120)))
+      .map(c => c.page);
+    if (candidatePages.length === 0) return null;
+
+    const tocStart = candidatePages[0];
+    const pagesToScan = [tocStart, tocStart + 1, tocStart + 2].filter(p => p <= totalPages);
+    const entryRegex = /^(Block|Chapter|Unit|Section)\s+(\d+)\b[:.\-]?\s*(.*?)[\s.\-]{0,}(\d{1,4})\s*$/i;
+
+    const rawEntries = [];
+    for (const pageNum of pagesToScan) {
+      const page = await pdf.getPage(pageNum);
+      const lines = await extractPageLines(page);
+      lines.forEach(rawLine => {
+        const line = deLetterSpace(rawLine);
+        const m = line.match(entryRegex);
+        if (m) {
+          rawEntries.push({
+            kind: m[1].toLowerCase(),
+            num: parseInt(m[2], 10),
+            title: m[3].replace(/\.+$/, '').trim(),
+            printedPage: parseInt(m[4], 10)
+          });
+        }
+      });
+    }
+    if (rawEntries.length === 0) return null;
+
+    // Calibrate printed-page-number -> physical-PDF-page offset using the first entry: find
+    // where it actually starts in the body (a heading near the top of a page, after the ToC).
+    const searchFrom = Math.max(...pagesToScan) + 1;
+    const first = rawEntries[0];
+    const headingRegex = new RegExp('^.{0,80}\\b' + first.kind + '\\s+' + numberAlternates(first.num) + '\\b', 'i');
+    const firstPhysical = chunks.find(c => c.page >= searchFrom && headingRegex.test(c.text));
+    if (!firstPhysical) return null;
+    const offset = firstPhysical.page - first.printedPage;
+
+    const entries = rawEntries
+      .map(e => ({ ...e, physicalStart: Math.min(Math.max(e.printedPage + offset, searchFrom), totalPages) }))
+      .sort((a, b) => a.physicalStart - b.physicalStart);
+
+    for (let i = 0; i < entries.length; i++) {
+      entries[i].physicalEnd = (i + 1 < entries.length) ? entries[i + 1].physicalStart - 1 : totalPages;
+    }
+    return entries;
+  }
+
+  // Many textbooks typeset headings in letter-spaced or tracked caps ("B L O C K  T H R E E"),
+  // which pdf.js extracts as isolated single letters. That breaks a literal "block 3" text match
+  // even though the heading is right there — so collapse those runs back into normal words.
+  function deLetterSpace(text) {
+    return text.replace(/\b(?:[A-Za-z]\s){2,}[A-Za-z]\b/g, m => m.replace(/\s+/g, ''));
+  }
+
+  async function extractAllContent(arrayBuffer, onProgress) {
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const totalPages = pdf.numPages;
+    const chunks = [];
+    const emptyPages = [];
+
+    for (let i = 1; i <= totalPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const rawText = content.items.map(it => it.str).join(' ').replace(/\s+/g, ' ').trim();
+      const text = deLetterSpace(rawText);
+      if (text.length > 0) chunks.push({ page: i, text });
+      else emptyPages.push(i);
+      if (onProgress) onProgress('text', i, totalPages);
+    }
+
+    let structuralMap = null;
+    if (onProgress) onProgress('toc', 0, 1);
+    try {
+      structuralMap = await detectTableOfContents(pdf, chunks, totalPages);
+    } catch (e) {
+      structuralMap = null; // ToC parsing is best-effort; fall back gracefully if it fails
+    }
+
+    // Image/diagram pages are intentionally NOT analysed here — that's slow and often unwanted.
+    // The caller decides which sections (if any) are worth the vision-OCR pass, on demand.
+    return { chunks, totalPages, emptyPages, structuralMap, pdfDoc: pdf };
+  }
+
+  // Keeps each book's open pdf.js document around in memory (not persisted) so image pages can
+  // be analysed on demand later in the same session, without re-uploading the file.
+  const pdfDocCache = {};
+
+  function groupIntoRuns(pages) {
+    const sorted = [...pages].sort((a, b) => a - b);
+    const runs = [];
+    let current = [];
+    sorted.forEach(p => {
+      if (current.length && p !== current[current.length - 1] + 1) { runs.push(current); current = []; }
+      current.push(p);
+    });
+    if (current.length) runs.push(current);
+    return runs.map(r => ({
+      id: 'run-' + r[0],
+      label: r.length > 1 ? ('Pages ' + r[0] + '\u2013' + r[r.length - 1]) : ('Page ' + r[0]),
+      pages: r
+    }));
+  }
+
+  // Groups the book's image-only pages by the chapters/blocks they actually fall in (per the
+  // contents page), so the picker reads "Chapter 2: Evil — 5 pages" instead of a bare page list.
+  function groupEmptyPagesBySections(emptyPages, structuralMap) {
+    if (!emptyPages.length) return [];
+    if (!structuralMap || !structuralMap.length) return groupIntoRuns(emptyPages);
+
+    const sectionEntries = structuralMap.filter(e => e.kind === 'chapter');
+    const useEntries = sectionEntries.length ? sectionEntries : structuralMap;
+    const sections = useEntries.map(e => ({
+      id: e.kind + '-' + e.num + '-' + e.physicalStart,
+      label: e.kind.charAt(0).toUpperCase() + e.kind.slice(1) + ' ' + e.num + (e.title ? ': ' + e.title : ''),
+      pages: emptyPages.filter(p => p >= e.physicalStart && p <= e.physicalEnd)
+    })).filter(s => s.pages.length > 0);
+
+    const covered = new Set(sections.flatMap(s => s.pages));
+    const uncovered = emptyPages.filter(p => !covered.has(p));
+    if (uncovered.length) {
+      groupIntoRuns(uncovered).forEach(r => sections.push({ id: 'uncovered-' + r.id, label: 'Other pages: ' + r.label, pages: r.pages }));
+    }
+    return sections;
+  }
+
+  // ---------- lexical retrieval index ----------
+
+  function tokenize(str) {
+    return (str.toLowerCase().match(/[a-z0-9']+/g) || []).filter(t => t.length > 2 && !STOPWORDS.has(t));
+  }
+
+  // Claude's context window comfortably fits far more than a module block's worth of text.
+  // Budget generously for the book itself, leaving headroom for system prompt, chat history and output.
+  const FULL_TEXT_TOKEN_LIMIT = 170000;
+
+  function buildIndex(chunks) {
+    const df = {};
+    let totalWords = 0;
+    let totalChars = 0;
+    const wordCapStats = {}; // lowercase word -> { cap, total }
+    const chunkTokens = chunks.map(c => {
+      const tf = {};
+      tokenize(c.text).forEach(t => { tf[t] = (tf[t] || 0) + 1; });
+      Object.keys(tf).forEach(t => { df[t] = (df[t] || 0) + 1; });
+      totalWords += c.text.split(' ').length;
+      totalChars += c.text.length;
+      const rawWords = c.text.match(/\b[a-zA-Z']{3,}\b/g) || [];
+      rawWords.forEach(w => {
+        const lw = w.toLowerCase();
+        if (!wordCapStats[lw]) wordCapStats[lw] = { cap: 0, total: 0 };
+        wordCapStats[lw].total++;
+        if (/^[A-Z]/.test(w)) wordCapStats[lw].cap++;
+      });
+      return tf;
+    });
+    const approxTokens = Math.ceil(totalChars / 4); // rough chars-to-tokens estimate
+
+    // Words that are almost always capitalised in the book's own text are treated as proper
+    // nouns (names of people, places, works) regardless of how the user types them in a question.
+    const properNounsLower = new Set();
+    Object.keys(wordCapStats).forEach(lw => {
+      const { cap, total } = wordCapStats[lw];
+      if (total >= 2 && cap / total >= 0.8 && !STOPWORDS.has(lw)) properNounsLower.add(lw);
+    });
+
+    return { chunks, chunkTokens, df, n: chunks.length, totalWords, approxTokens, properNounsLower };
+  }
+
+  async function getIndex(bookId) {
+    if (indexCache[bookId]) return indexCache[bookId];
+    const book = books.find(b => b.id === bookId);
+    const chunks = await loadChunks(bookId, book.chunkCount);
+    const index = buildIndex(chunks);
+    index.structuralMap = book.structuralMap || null;
+    indexCache[bookId] = index;
+    return index;
+  }
+
+  // Case-insensitive: matches "hume" against pages where the book itself renders it "Hume".
+  function extractGuaranteedTerms(question, index) {
+    const words = question.match(/\b[a-zA-Z']{3,}\b/g) || [];
+    const seen = new Set();
+    const terms = [];
+    words.forEach(w => {
+      const lw = w.toLowerCase();
+      if (!STOPWORDS.has(lw) && index.properNounsLower.has(lw) && !seen.has(lw)) {
+        seen.add(lw);
+        terms.push(w);
+      }
+    });
+    return terms;
+  }
+
+  // Matches "3", "three", or "III" for a given number — covers books that spell out or use
+  // roman numerals for chapter/block headings instead of plain digits.
+  const NUMBER_WORDS = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
+  const ROMAN_NUMERALS = ['','i','ii','iii','iv','v','vi','vii','viii','ix','x','xi','xii','xiii','xiv','xv','xvi','xvii','xviii','xix','xx'];
+  function numberAlternates(n) {
+    const parts = [String(n)];
+    if (NUMBER_WORDS[n]) parts.push(NUMBER_WORDS[n]);
+    if (ROMAN_NUMERALS[n]) parts.push(ROMAN_NUMERALS[n]);
+    return '(?:' + parts.join('|') + ')';
+  }
+
+  // If the question names a specific chapter/block, find its full page range in the extracted
+  // text and return every page in that range — far more reliable for "go deeper on chapter X"
+  // than scattered keyword hits. Prefers headings near the top of a page (real chapter openings)
+  // over incidental mentions (contents pages, citations, cross-references).
+  function detectNamedRange(question, chunks) {
+    const m = question.match(/\b(chapter|block|unit|section)\s+(\d+)/i);
+    if (!m) return null;
+    const kind = m[1];
+    const num = parseInt(m[2], 10);
+    const headingRegex = (n) => new RegExp('^.{0,80}\\b' + kind + '\\s+' + numberAlternates(n) + '\\b', 'i');
+    const anyRegex = (n) => new RegExp('\\b' + kind + '\\s+' + numberAlternates(n) + '\\b', 'i');
+
+    const findHeadingIdx = (n) => chunks.findIndex(c => headingRegex(n).test(c.text));
+    let startIdx = findHeadingIdx(num);
+    let endSearchFrom;
+    if (startIdx === -1) {
+      // no clear page-top heading found — fall back to first mention anywhere (less reliable)
+      startIdx = chunks.findIndex(c => anyRegex(num).test(c.text));
+      if (startIdx === -1) return null;
+    }
+    endSearchFrom = startIdx + 1;
+    let endIdx = chunks.length;
+    let nextHeadingIdx = -1;
+    for (let i = endSearchFrom; i < chunks.length; i++) {
+      if (headingRegex(num + 1).test(chunks[i].text)) { nextHeadingIdx = i; break; }
+    }
+    if (nextHeadingIdx !== -1) endIdx = nextHeadingIdx;
+    return chunks.slice(startIdx, endIdx);
+  }
+
+  // Prefer the book's own contents page over text-search guessing. Also resolves ambiguity
+  // when the same chapter number recurs across multiple blocks (e.g. each block has its own
+  // "Chapter 3") by matching a block number mentioned alongside it, if given.
+  function detectFromStructuralMap(question, structuralMap, chunks) {
+    if (!structuralMap || !structuralMap.length) return null;
+    const m = question.match(/\b(chapter|block|unit|section)\s+(\d+)/i);
+    if (!m) return null;
+    const kind = m[1].toLowerCase();
+    const num = parseInt(m[2], 10);
+    const candidates = structuralMap.filter(e => e.kind === kind && e.num === num);
+    if (candidates.length === 0) return null;
+
+    let chosen = candidates[0];
+    if (candidates.length > 1 && kind !== 'block') {
+      const blockMatch = question.match(/\bblock\s+(\d+)/i);
+      if (blockMatch) {
+        const wantedBlock = parseInt(blockMatch[1], 10);
+        const blocks = structuralMap.filter(e => e.kind === 'block');
+        const blockForPage = (page) => {
+          let containing = null;
+          blocks.forEach(b => { if (page >= b.physicalStart) containing = b; });
+          return containing;
+        };
+        const match = candidates.find(c => {
+          const b = blockForPage(c.physicalStart);
+          return b && b.num === wantedBlock;
+        });
+        if (match) chosen = match;
+      }
+    }
+
+    const rangeChunks = chunks.filter(c => c.page >= chosen.physicalStart && c.page <= chosen.physicalEnd);
+    if (rangeChunks.length === 0) return null;
+    return { chunks: rangeChunks, entry: chosen, ambiguousCount: candidates.length };
+  }
+
+  function exactMatchChunks(term, chunks) {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp('\\b' + escaped + '\\b', 'i');
+    return chunks.filter(c => regex.test(c.text));
+  }
+
+  function topChunksFor(question, index, wordBudget, candidateChunks) {
+    const pool = candidateChunks || index.chunks;
+    const qTokens = tokenize(question);
+    const scored = pool.map(chunk => {
+      const tf = {};
+      tokenize(chunk.text).forEach(t => { tf[t] = (tf[t] || 0) + 1; });
+      let s = 0;
+      qTokens.forEach(t => {
+        if (tf[t]) {
+          const idf = Math.log(1 + index.n / (1 + (index.df[t] || 0)));
+          s += tf[t] * idf;
+        }
+      });
+      return { chunk, s };
+    }).sort((a, b) => b.s - a.s);
+    const anyMatch = scored.length && scored[0].s > 0;
+    const picked = [];
+    let words = 0;
+    for (const r of scored) {
+      if (anyMatch && r.s <= 0) break;
+      const chunkWords = r.chunk.text.split(' ').length;
+      if (picked.length > 0 && words + chunkWords > wordBudget) break;
+      picked.push(r.chunk);
+      words += chunkWords;
+    }
+    if (picked.length === 0) {
+      const fallbackCount = Math.min(pool.length, 20);
+      return { chunks: pool.slice(0, fallbackCount), weak: true };
+    }
+    picked.sort((a, b) => a.page - b.page);
+    return { chunks: picked, weak: !anyMatch };
+  }
+
+  // A literal page reference ("page 69", "p.69", "pages 69-70") is the most unambiguous anchor
+  // possible — it should go straight to that page and nothing else, never a chapter/book-wide search.
+  function detectPageMention(question) {
+    const nums = new Set();
+    const rangeRe = /\bpages?\s+(\d{1,4})\s*(?:-|to|\u2013|and)\s*(\d{1,4})\b/gi;
+    let m;
+    while ((m = rangeRe.exec(question))) {
+      const a = parseInt(m[1], 10), b = parseInt(m[2], 10);
+      for (let n = Math.min(a, b); n <= Math.max(a, b); n++) nums.add(n);
+    }
+    const singleRe = /\b(?:pages?|pg\.?|p\.)\s*(\d{1,4})\b/gi;
+    while ((m = singleRe.exec(question))) nums.add(parseInt(m[1], 10));
+    return [...nums].sort((a, b) => a - b);
+  }
+
+  // Prefer thoroughness: if the whole book's text reasonably fits, send every page every time
+  // so nothing gets missed. Otherwise prefer a full, contiguous named chapter/block, then a
+  // guaranteed exhaustive search for any named person/term in the question. If neither anchors
+  // the question, signal that a full sequential scan of the entire book is needed — never a guess.
+  function selectContext(question, index, followUpPages) {
+    if (index.approxTokens <= FULL_TEXT_TOKEN_LIMIT) {
+      return { chunks: index.chunks, weak: false, full: true };
+    }
+
+    const pageNums = detectPageMention(question);
+    if (pageNums.length) {
+      const matched = index.chunks.filter(c => pageNums.includes(c.page));
+      return { chunks: matched, weak: false, full: false, pageMatch: pageNums };
+    }
+
+    const tocMatch = detectFromStructuralMap(question, index.structuralMap, index.chunks);
+    if (tocMatch) {
+      const rangeTokens = Math.ceil(tocMatch.chunks.reduce((s, c) => s + c.text.length, 0) / 4);
+      const entryLabel = tocMatch.entry.kind.charAt(0).toUpperCase() + tocMatch.entry.kind.slice(1) + ' ' + tocMatch.entry.num + (tocMatch.entry.title ? ': ' + tocMatch.entry.title : '');
+      if (rangeTokens <= FULL_TEXT_TOKEN_LIMIT) {
+        return { chunks: tocMatch.chunks, weak: false, full: false, namedRange: true, tocEntryLabel: entryLabel, ambiguousCount: tocMatch.ambiguousCount };
+      }
+      const narrowed = topChunksFor(question, index, 45000, tocMatch.chunks);
+      return { ...narrowed, full: false, namedRange: false };
+    }
+
+    const namedRange = detectNamedRange(question, index.chunks);
+    if (namedRange && namedRange.length) {
+      const rangeTokens = Math.ceil(namedRange.reduce((s, c) => s + c.text.length, 0) / 4);
+      if (rangeTokens <= FULL_TEXT_TOKEN_LIMIT) {
+        return { chunks: namedRange, weak: false, full: false, namedRange: true };
+      }
+      const narrowed = topChunksFor(question, index, 45000, namedRange);
+      return { ...narrowed, full: false, namedRange: false };
+    }
+
+    const terms = extractGuaranteedTerms(question, index);
+    if (terms.length) {
+      const guaranteedMap = new Map();
+      terms.forEach(t => exactMatchChunks(t, index.chunks).forEach(c => guaranteedMap.set(c.page, c)));
+      // Skip terms so common they'd basically dump the whole book (weak anchor, not a real name search)
+      if (guaranteedMap.size && guaranteedMap.size <= index.n * 0.35) {
+        const guaranteedChunks = [...guaranteedMap.values()].sort((a, b) => a.page - b.page);
+        const guaranteedTokens = Math.ceil(guaranteedChunks.reduce((s, c) => s + c.text.length, 0) / 4);
+        if (guaranteedTokens <= FULL_TEXT_TOKEN_LIMIT) {
+          const guaranteedWords = guaranteedChunks.reduce((s, c) => s + c.text.split(' ').length, 0);
+          const extraBudget = Math.max(0, 45000 - guaranteedWords);
+          let extra = [];
+          if (extraBudget > 500) {
+            const remainingPool = index.chunks.filter(c => !guaranteedMap.has(c.page));
+            const res = topChunksFor(question, index, extraBudget, remainingPool);
+            if (!res.weak) extra = res.chunks;
+          }
+          const combined = guaranteedChunks.concat(extra).sort((a, b) => a.page - b.page);
+          return { chunks: combined, weak: false, full: false, exactTerms: terms, exactPageCount: guaranteedChunks.length };
+        }
+      }
+    }
+
+    // Nothing new anchors this question — but if the last answer for this book already pulled
+    // in a specific set of pages (a chapter, a name, a page), a follow-up almost always means
+    // "more from that same material", not "search the whole book again". Reuse it.
+    if (followUpPages && followUpPages.length) {
+      const reused = index.chunks.filter(c => followUpPages.includes(c.page));
+      if (reused.length) {
+        return { chunks: reused, weak: false, full: false, followUp: true };
+      }
+    }
+
+    // Truly nothing to anchor on — the only way to guarantee full thoroughness on a book this
+    // size is to actually read all of it, in sequential passes.
+    return { needsFullScan: true };
+  }
+
+  // ---------- rendering ----------
+
+  function renderShelf() {
+    shelfEl.innerHTML = '';
+    books.forEach(b => {
+      const wrap = document.createElement('div');
+      wrap.className = 'chip-wrap' + (b.id === currentBookId ? ' active' : '');
+
+      if (b.emptyPages && b.emptyPages.length > 0) {
+        const imgBtn = document.createElement('button');
+        imgBtn.className = 'chip-image-btn';
+        imgBtn.textContent = '\uD83D\uDDBC\uFE0F';
+        imgBtn.setAttribute('aria-label', 'Analyse images for ' + b.title + ' (' + b.emptyPages.length + ' pages)');
+        imgBtn.onclick = (e) => { e.stopPropagation(); selectBook(b.id).then(() => renderImagePicker(b.id)); };
+        wrap.appendChild(imgBtn);
+      }
+
+      const label = document.createElement('button');
+      label.className = 'chip-label';
+      label.textContent = b.title;
+      label.onclick = () => selectBook(b.id);
+      wrap.appendChild(label);
+
+      const removeX = document.createElement('button');
+      removeX.className = 'chip-remove';
+      removeX.textContent = '\u00d7';
+      removeX.setAttribute('aria-label', 'Remove ' + b.title);
+      removeX.onclick = (e) => { e.stopPropagation(); removeBook(b.id); };
+      wrap.appendChild(removeX);
+
+      shelfEl.appendChild(wrap);
+    });
+    const addChip = document.createElement('label');
+    addChip.setAttribute('for', 'hidden-file-input');
+    addChip.className = 'chip add';
+    addChip.textContent = '+ Add textbook';
+    shelfEl.appendChild(addChip);
+  }
+
+  function bubble(role, text) {
+    const el = document.createElement('div');
+    el.className = 'bubble ' + role;
+    el.textContent = text;
+    return el;
+  }
+
+  function messageBlock(m) {
+    if (m.role === 'system-note') {
+      const wrap = document.createElement('div');
+      wrap.appendChild(bubble('system-note', m.text));
+      return wrap;
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'msg-block ' + (m.role === 'user' ? 'user' : 'assistant');
+    wrap.appendChild(bubble(m.role === 'user' ? 'user' : (m.role === 'error' ? 'error' : 'assistant'), m.text));
+    if (m.fullRange) {
+      const src = document.createElement('div');
+      src.className = 'sources-line full';
+      src.textContent = 'Checked every page, ' + m.fullRange[0] + '\u2013' + m.fullRange[1] + ' (whole book)';
+      wrap.appendChild(src);
+    } else if (m.pageMatchInfo) {
+      const src = document.createElement('div');
+      src.className = 'sources-line full';
+      src.textContent = m.pageMatchInfo.length
+        ? 'Checked exactly page' + (m.pageMatchInfo.length === 1 ? '' : 's') + ' ' + m.pageMatchInfo.join(', ') + ' — nothing else'
+        : 'No content found on the requested page';
+      wrap.appendChild(src);
+    } else if (m.namedRangeInfo) {
+      const src = document.createElement('div');
+      src.className = 'sources-line full';
+      const label = m.tocEntryLabel ? m.tocEntryLabel + ', ' : '';
+      const ambiguity = (m.ambiguousCount && m.ambiguousCount > 1) ? ' \u26a0 this number appears in ' + m.ambiguousCount + ' places — say "block N" to target a specific one' : '';
+      src.textContent = 'Checked ' + label + 'pages ' + m.namedRangeInfo[0] + '\u2013' + m.namedRangeInfo[1] + ' in full' + ambiguity;
+      wrap.appendChild(src);
+    } else if (m.exactTermsInfo) {
+      const src = document.createElement('div');
+      src.className = 'sources-line full';
+      const extra = m.exactTermsInfo.extraCount > 0 ? ', plus ' + m.exactTermsInfo.extraCount + ' pages of context' : '';
+      src.textContent = 'Searched every page for "' + m.exactTermsInfo.terms.join('", "') + '" — found on ' + m.exactTermsInfo.pageCount + ' page' + (m.exactTermsInfo.pageCount === 1 ? '' : 's') + extra;
+      wrap.appendChild(src);
+    } else if (m.followUpInfo) {
+      const src = document.createElement('div');
+      src.className = 'sources-line full';
+      src.textContent = 'Continued from your last question \u2014 pages ' + m.followUpInfo[0] + '\u2013' + m.followUpInfo[1];
+      wrap.appendChild(src);
+    } else if (m.fullScanInfo) {
+      const src = document.createElement('div');
+      src.className = 'sources-line full';
+      src.textContent = 'Read the entire book (' + m.fullScanInfo.totalPages + ' pages, ' + m.fullScanInfo.passCount + ' passes) — ' + m.fullScanInfo.relevantPasses + ' section' + (m.fullScanInfo.relevantPasses === 1 ? '' : 's') + ' had relevant material';
+      wrap.appendChild(src);
+    } else if (m.pages && m.pages.length) {
+      const src = document.createElement('div');
+      src.className = 'sources-line partial';
+      src.textContent = '\u26a0 Partial coverage — pages checked: ' + m.pages.join(', ');
+      wrap.appendChild(src);
+    }
+    return wrap;
+  }
+
+  async function renderMain() {
+    mainEl.innerHTML = '';
+    if (!currentBookId) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.innerHTML = '<div class="mark serif">&sect;</div>' +
+        '<h2 class="serif">No textbook yet</h2>' +
+        '<p>Add a PDF of a set text and ask it things like "did the author defend divine command theory?" or "which page covers utilitarianism?"</p>';
+      const btn = document.createElement('label');
+      btn.setAttribute('for', 'hidden-file-input');
+      btn.className = 'chip-btn';
+      btn.textContent = 'Add your first textbook';
+      empty.appendChild(btn);
+      mainEl.appendChild(empty);
+      return;
+    }
+    const list = await loadMessages(currentBookId);
+    if (list.length === 0) {
+      mainEl.appendChild(bubble('system-note', 'Ask anything about this text. Each question pulls in just the most relevant pages, so answers stay fast and the conversation can build on itself.'));
+    }
+    list.forEach(m => mainEl.appendChild(messageBlock(m)));
+    mainEl.scrollTop = mainEl.scrollHeight;
+  }
+
+  async function selectBook(id) {
+    currentBookId = id;
+    questionInput.disabled = false;
+    sendBtn.disabled = false;
+    hideImagePicker();
+    renderShelf();
+    await renderMain();
+  }
+
+  async function removeBook(id) {
+    const book = books.find(b => b.id === id);
+    if (!book) return;
+    try {
+      for (let i = 0; i < book.chunkCount; i++) {
+        await window.storage.delete('book:' + id + ':chunk:' + i, false);
+      }
+      await window.storage.delete('chat:' + id, false);
+    } catch (e) { /* best effort cleanup */ }
+    books = books.filter(b => b.id !== id);
+    delete messages[id];
+    delete indexCache[id];
+    delete pdfDocCache[id];
+    await saveManifest();
+    if (currentBookId === id) currentBookId = books.length ? books[0].id : null;
+    hideImagePicker();
+    renderShelf();
+    await renderMain();
+    if (!currentBookId) { questionInput.disabled = true; sendBtn.disabled = true; }
+  }
+
+  // ---------- upload flow ----------
+
+  async function handleFileSelected(file) {
+    if (!file) return;
+    if (file.type !== 'application/pdf') { alert('Please choose a PDF file.'); return; }
+
+    const progress = document.createElement('div');
+    progress.className = 'upload-progress';
+    progress.textContent = 'Reading "' + file.name + '"...';
+    mainEl.innerHTML = '';
+    mainEl.appendChild(progress);
+
+    try {
+      const arrayBuffer = await readFileAsArrayBuffer(file);
+      const { chunks, totalPages, emptyPages, structuralMap, pdfDoc } = await extractAllContent(arrayBuffer, (phase, a, b) => {
+        if (phase === 'text') {
+          progress.textContent = 'Reading "' + file.name + '" — page ' + a + ' of ' + b;
+        } else if (phase === 'toc') {
+          progress.textContent = 'Reading the contents page to map out blocks/chapters...';
+        }
+      });
+
+      if (chunks.length === 0) {
+        throw new Error('No readable text found — this looks like a scanned PDF without a text layer.');
+      }
+
+      progress.textContent = 'Indexing "' + file.name + '"...';
+      const id = 'book_' + Date.now();
+      const chunkCount = await storeChunks(id, chunks);
+      pdfDocCache[id] = pdfDoc;
+
+      const title = file.name.replace(/\.pdf$/i, '');
+      const pageCount = chunks[chunks.length - 1].page;
+      const index = buildIndex(chunks);
+      index.structuralMap = structuralMap;
+      const fitsWhole = index.approxTokens <= FULL_TEXT_TOKEN_LIMIT;
+      books.push({ id, title, chunkCount, pageCount, totalPages, emptyPages, fitsWhole, structuralMap, addedAt: Date.now() });
+      await saveManifest();
+      indexCache[id] = index;
+      await selectBook(id);
+
+      // Surface any coverage gaps immediately, not buried in a later answer
+      const notes = [];
+      if (emptyPages.length > 0) {
+        notes.push(emptyPages.length + ' page' + (emptyPages.length === 1 ? '' : 's') +
+          ' had no extractable text (likely images or diagrams). They\'re not analysed automatically — ' +
+          'use "Analyse images" below to pick which sections (if any) are worth reading as pictures.');
+      }
+      if (!fitsWhole) {
+        notes.push('This book is long enough (~' + index.totalWords.toLocaleString() +
+          ' words) that it can\'t all fit in one request. Questions naming a chapter/block or a specific ' +
+          'person/term get a guaranteed full search of everything relevant. Anything else triggers a full ' +
+          'sequential read-through of the entire book (slower, but nothing gets skipped) — either way, ' +
+          'answers always show exactly what was checked.');
+      } else {
+        notes.push('This book fits comfortably in full — every question checks all ' + chunks.length + ' pages of extracted text, every time.');
+      }
+      if (structuralMap && structuralMap.length) {
+        const blockCount = structuralMap.filter(e => e.kind === 'block').length;
+        const chapterCount = structuralMap.filter(e => e.kind === 'chapter').length;
+        notes.push('Found a contents page and mapped its structure: ' +
+          (blockCount ? blockCount + ' block' + (blockCount === 1 ? '' : 's') + ', ' : '') +
+          chapterCount + ' chapter' + (chapterCount === 1 ? '' : 's') + '. Chapter/block questions will use these real page ranges rather than guessing.');
+      } else if (!fitsWhole) {
+        notes.push('Couldn\'t confidently parse a contents page, so chapter/block references fall back to searching the text directly — still reliable, just without a verified page map.');
+      }
+      const list = await loadMessages(id);
+      notes.forEach(n => list.push({ role: 'system-note', text: n }));
+      await saveMessages(id);
+      if (currentBookId === id) await renderMain();
+      if (emptyPages.length > 0 && currentBookId === id) renderImagePicker(id);
+    } catch (e) {
+      mainEl.innerHTML = '';
+      mainEl.appendChild(bubble('error', "Couldn't add that file: " + e.message));
+    }
+  }
+
+  // ---------- image picker ----------
+
+  function hideImagePicker() {
+    const el = document.getElementById('image-picker');
+    el.style.display = 'none';
+    el.innerHTML = '';
+  }
+
+  function renderImagePicker(bookId) {
+    const book = books.find(b => b.id === bookId);
+    const el = document.getElementById('image-picker');
+    if (!book || !book.emptyPages || book.emptyPages.length === 0) { hideImagePicker(); return; }
+
+    const sections = groupEmptyPagesBySections(book.emptyPages, book.structuralMap);
+    el.innerHTML = '';
+    el.style.display = 'block';
+
+    const renameRow = document.createElement('div');
+    renameRow.className = 'rename-row';
+    const renameInput = document.createElement('input');
+    renameInput.type = 'text';
+    renameInput.className = 'rename-input';
+    renameInput.value = book.title;
+    renameInput.setAttribute('aria-label', 'Rename this textbook');
+    const commitRename = async () => {
+      const newTitle = renameInput.value.trim();
+      if (newTitle && newTitle !== book.title) {
+        book.title = newTitle;
+        await saveManifest();
+        renderShelf();
+      } else {
+        renameInput.value = book.title;
+      }
+    };
+    renameInput.addEventListener('blur', commitRename);
+    renameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') renameInput.blur(); });
+    renameRow.appendChild(renameInput);
+    el.appendChild(renameRow);
+
+    const h = document.createElement('h3');
+    h.className = 'serif';
+    h.textContent = 'Analyse images (' + book.emptyPages.length + ' page' + (book.emptyPages.length === 1 ? '' : 's') + ')';
+    el.appendChild(h);
+
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = 'These pages have no text, likely diagrams or images. Pick which sections are worth reading as pictures — this uses the model\'s vision and takes longer per page.';
+    el.appendChild(hint);
+
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.className = 'picker-select-all';
+    selectAllBtn.textContent = 'Select all';
+    el.appendChild(selectAllBtn);
+
+    const checkboxes = [];
+    sections.forEach(section => {
+      const row = document.createElement('div');
+      row.className = 'picker-row';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = 'imgsec-' + section.id;
+      cb.dataset.pages = JSON.stringify(section.pages);
+      const label = document.createElement('label');
+      label.setAttribute('for', cb.id);
+      label.textContent = section.label + ' — ' + section.pages.length + ' page' + (section.pages.length === 1 ? '' : 's');
+      row.appendChild(cb);
+      row.appendChild(label);
+      el.appendChild(row);
+      checkboxes.push(cb);
+    });
+
+    let allSelected = false;
+    selectAllBtn.onclick = () => {
+      allSelected = !allSelected;
+      checkboxes.forEach(cb => { cb.checked = allSelected; });
+      selectAllBtn.textContent = allSelected ? 'Deselect all' : 'Select all';
+    };
+
+    const actions = document.createElement('div');
+    actions.className = 'picker-actions';
+
+    const analyseBtn = document.createElement('button');
+    analyseBtn.className = 'primary';
+    analyseBtn.textContent = 'Analyse selected';
+    analyseBtn.onclick = async () => {
+      const selectedPages = checkboxes
+        .filter(cb => cb.checked)
+        .flatMap(cb => JSON.parse(cb.dataset.pages));
+      if (selectedPages.length === 0) return;
+      await analyseSelectedImages(bookId, selectedPages, el);
+    };
+    actions.appendChild(analyseBtn);
+
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'secondary';
+    skipBtn.textContent = 'Not now';
+    skipBtn.onclick = () => hideImagePicker();
+    actions.appendChild(skipBtn);
+
+    el.appendChild(actions);
+  }
+
+  async function analyseSelectedImages(bookId, pages, containerEl) {
+    const book = books.find(b => b.id === bookId);
+    const pdfDoc = pdfDocCache[bookId];
+    if (!pdfDoc) {
+      containerEl.innerHTML = '<p class="hint">The original file isn\'t available in this session anymore, so images can\'t be analysed right now. Remove and re-add this book to enable image analysis again.</p>';
+      return;
+    }
+
+    containerEl.innerHTML = '<p class="hint">Starting image analysis...</p>';
+
+    const newChunks = [];
+    const stillFailed = [];
+    for (let i = 0; i < pages.length; i++) {
+      const pageNum = pages[i];
+      containerEl.innerHTML = '<p class="hint">Analysing page ' + pageNum + ' (' + (i + 1) + ' of ' + pages.length + ')...</p>';
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const base64Png = await renderPageToImageBase64(page);
+        const desc = await describeImagePage(base64Png);
+        if (desc && desc.length > 0) newChunks.push({ page: pageNum, text: desc, imageDerived: true });
+        else stillFailed.push(pageNum);
+      } catch (e) {
+        stillFailed.push(pageNum);
+      }
+    }
+
+    containerEl.innerHTML = '<p class="hint">Saving results...</p>';
+    const existingChunks = await loadChunks(bookId, book.chunkCount);
+    // Merge by page number — this preserves every page's real, original page number regardless
+    // of when (or whether) its image content gets analysed.
+    const merged = existingChunks.concat(newChunks).sort((a, b) => a.page - b.page);
+    const oldChunkCount = book.chunkCount;
+    const newChunkCount = await storeChunks(bookId, merged);
+    if (newChunkCount < oldChunkCount) {
+      for (let i = newChunkCount; i < oldChunkCount; i++) {
+        try { await window.storage.delete('book:' + bookId + ':chunk:' + i, false); } catch (e) { /* best effort */ }
+      }
+    }
+    book.chunkCount = newChunkCount;
+    const successfulPages = newChunks.map(c => c.page);
+    book.emptyPages = (book.emptyPages || []).filter(p => !successfulPages.includes(p));
+    const newIndex = buildIndex(merged);
+    newIndex.structuralMap = book.structuralMap;
+    book.fitsWhole = newIndex.approxTokens <= FULL_TEXT_TOKEN_LIMIT;
+    indexCache[bookId] = newIndex;
+    await saveManifest();
+
+    hideImagePicker();
+    const list = await loadMessages(bookId);
+    let note = 'Analysed ' + successfulPages.length + ' image page' + (successfulPages.length === 1 ? '' : 's') + '.';
+    if (stillFailed.length) note += ' ' + stillFailed.length + ' page' + (stillFailed.length === 1 ? '' : 's') + ' had nothing readable on them.';
+    if (book.emptyPages.length) note += ' ' + book.emptyPages.length + ' page' + (book.emptyPages.length === 1 ? '' : 's') + ' still not analysed.';
+    list.push({ role: 'system-note', text: note });
+    await saveMessages(bookId);
+    if (currentBookId === bookId) await renderMain();
+    if (currentBookId === bookId) renderShelf();
+  }
+
+  // ---------- asking questions ----------
+
+  async function askQuestion() {
+    const question = questionInput.value.trim();
+    if (!question || !currentBookId || isBusy) return;
+    isBusy = true;
+    questionInput.value = '';
+    questionInput.style.height = 'auto';
+    sendBtn.disabled = true;
+
+    const bookId = currentBookId;
+    const list = await loadMessages(bookId);
+    list.push({ role: 'user', text: question });
+    await saveMessages(bookId);
+    await renderMain();
+
+    const thinking = bubble('thinking', 'Checking the relevant pages...');
+    mainEl.appendChild(thinking);
+    mainEl.scrollTop = mainEl.scrollHeight;
+
+    try {
+      const index = await getIndex(bookId);
+      // Look back for the most recent answer's page set, so a follow-up with no new anchor of
+      // its own ("elaborate on the fourth argument") can reuse it instead of scanning the book.
+      const priorAssistant = [...list].reverse().find(m => m.role === 'assistant' && m.pagesUsed && m.pagesUsed.length);
+      const followUpPages = priorAssistant ? priorAssistant.pagesUsed : null;
+      const selection = selectContext(question, index, followUpPages);
+
+      if (selection.needsFullScan) {
+        thinking.textContent = 'Reading the entire book, pass 1...';
+        const { notes, totalPages, passCount } = await fullBookScan(question, index, (i, total) => {
+          thinking.textContent = 'Reading the entire book, pass ' + i + ' of ' + total + '...';
+        });
+
+        const priorTurns = list.slice(0, -1).filter(m => m.role === 'user' || m.role === 'assistant').slice(-6);
+        const historyMessages = priorTurns.map(m => ({ role: m.role, content: m.text }));
+
+        const notesText = notes.length
+          ? notes.map(n => 'From pages ' + n.range[0] + '\u2013' + n.range[1] + ':\n' + n.note).join('\n\n---\n\n')
+          : '(No section of the book contained anything relevant to this question.)';
+
+        thinking.textContent = 'Combining findings from all ' + passCount + ' passes...';
+        const finalData = await callClaudeAPI({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1000,
+          system: "You are a study companion for a university Religion, Philosophy and Ethics student. You've been given notes gathered by reading an entire textbook section by section, each note citing its page range. Combine them into one clear, well-organised answer to the student's question, always naming the specific page numbers your points draw on. If the notes genuinely contain nothing relevant, say so plainly.",
+          messages: historyMessages.concat([{
+            role: 'user',
+            content: 'Notes gathered from reading the whole book (' + totalPages + ' pages, ' + passCount + ' passes):\n\n' + notesText + '\n\nQuestion: ' + question
+          }])
+        }, (attempt, maxAttempts, waitMs) => {
+          thinking.textContent = 'Server is busy — retrying in ' + Math.round(waitMs / 1000) + 's (attempt ' + attempt + ' of ' + maxAttempts + ')...';
+        });
+
+        const answer = apiText(finalData) || 'No answer came back — try rephrasing the question.';
+        thinking.remove();
+        const list2 = await loadMessages(bookId);
+        list2.push({ role: 'assistant', text: answer, fullScanInfo: { totalPages, passCount, relevantPasses: notes.length } });
+        await saveMessages(bookId);
+        if (bookId === currentBookId) await renderMain();
+        return;
+      }
+
+      if (selection.pageMatch && selection.chunks.length === 0) {
+        thinking.remove();
+        const book = books.find(b => b.id === bookId);
+        const totalPages = book ? book.totalPages : null;
+        const outOfRange = totalPages && selection.pageMatch.some(p => p > totalPages);
+        const stillEmpty = book && book.emptyPages && selection.pageMatch.some(p => book.emptyPages.includes(p));
+        let msg;
+        if (outOfRange) {
+          msg = 'Page ' + selection.pageMatch.join(', ') + ' is out of range — this book only has ' + totalPages + ' pages.';
+        } else if (stillEmpty) {
+          msg = 'Page ' + selection.pageMatch.join(', ') + ' has no extractable text — it\'s likely a diagram or image. Use the \uD83D\uDDBC\uFE0F button on this book\'s pill to analyse it.';
+        } else {
+          msg = 'Couldn\'t find any content on page ' + selection.pageMatch.join(', ') + ' in this book.';
+        }
+        const list2 = await loadMessages(bookId);
+        list2.push({ role: 'error', text: msg });
+        await saveMessages(bookId);
+        if (bookId === currentBookId) await renderMain();
+        return;
+      }
+
+      const { chunks: picked, weak, full, namedRange, exactTerms, exactPageCount, tocEntryLabel, ambiguousCount, pageMatch, followUp } = selection;
+      const excerptText = picked.map(c => '[Page ' + c.page + ']\n' + c.text).join('\n\n---\n\n');
+
+      // build recent history (plain text, no excerpts) so the model has conversational context
+      const priorTurns = list.slice(0, -1).filter(m => m.role === 'user' || m.role === 'assistant').slice(-6);
+      const historyMessages = priorTurns.map(m => ({
+        role: m.role,
+        content: m.text
+      }));
+
+      const ambiguityNote = (ambiguousCount && ambiguousCount > 1)
+        ? "\n\n(Note for you, the assistant: this chapter/block number appears " + ambiguousCount + " times across the book's structure — this is " + tocEntryLabel + ". If your answer might depend on which one, mention that to the student.)"
+        : "";
+      const introLine = full
+        ? "The full text of the book, every page:\n\n"
+        : pageMatch
+          ? "Exactly the page(s) requested, and nothing else:\n\n"
+          : namedRange
+            ? "The full text of " + (tocEntryLabel ? tocEntryLabel : "the named chapter/section") + ", every page within it, taken from the book's own contents page" + ambiguityNote + ":\n\n"
+            : exactTerms
+              ? "Every page in the book that mentions " + exactTerms.join('/') + ", plus some surrounding context pages:\n\n"
+              : followUp
+                ? "The same pages your last answer for this book drew on (this question didn't name a new chapter, page, or term, so treat it as a follow-up on that same material):\n\n"
+                : (weak
+                  ? "No excerpt matched your wording closely, so here are a few pages to start from:\n\n"
+                  : "Relevant excerpts:\n\n");
+      const currentContent = introLine + excerptText + "\n\nQuestion: " + question;
+
+      const messagesPayload = historyMessages.concat([{ role: 'user', content: currentContent }]);
+
+      const data = await callClaudeAPI({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        system: "You are a study companion for a university Religion, Philosophy and Ethics student, revising from a textbook. You are usually given either the entire book, an entire named chapter/section, or every page mentioning a specific name/term, page by page (marked like [Page 12]) — read all of it carefully before answering, since the student is relying on you to catch everything relevant, not just the most obvious section. Always name every page number your answer draws on. If the provided text truly doesn't contain the answer, say so plainly rather than guessing. Paraphrase in your own words; keep any direct quotation under 15 words.",
+        messages: messagesPayload
+      }, (attempt, maxAttempts, waitMs) => {
+        thinking.textContent = 'Server is busy — retrying in ' + Math.round(waitMs / 1000) + 's (attempt ' + attempt + ' of ' + maxAttempts + ')...';
+      });
+
+      const answer = apiText(data) || 'No answer came back — try rephrasing the question.';
+
+      thinking.remove();
+      const list2 = await loadMessages(bookId);
+      const sourceInfo = full
+        ? { fullRange: [picked[0].page, picked[picked.length - 1].page] }
+        : pageMatch
+          ? { pageMatchInfo: picked.map(c => c.page) }
+          : namedRange
+            ? { namedRangeInfo: [picked[0].page, picked[picked.length - 1].page], tocEntryLabel, ambiguousCount }
+            : exactTerms
+              ? { exactTermsInfo: { terms: exactTerms, pageCount: exactPageCount, extraCount: picked.length - exactPageCount } }
+              : followUp
+                ? { followUpInfo: [picked[0].page, picked[picked.length - 1].page] }
+                : { pages: picked.map(c => c.page) };
+      list2.push({ role: 'assistant', text: answer, pagesUsed: picked.map(c => c.page), ...sourceInfo });
+      await saveMessages(bookId);
+      if (bookId === currentBookId) await renderMain();
+    } catch (e) {
+      thinking.remove();
+      const list2 = await loadMessages(bookId);
+      list2.push({ role: 'error', text: 'Something went wrong: ' + e.message });
+      await saveMessages(bookId);
+      if (bookId === currentBookId) await renderMain();
+    } finally {
+      isBusy = false;
+      sendBtn.disabled = !currentBookId;
+    }
+  }
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    handleFileSelected(file);
+    fileInput.value = '';
+  });
+
+  sendBtn.addEventListener('click', askQuestion);
+  // On phones there's no reliable way to type Shift+Enter for a new line, so Enter should
+  // just make a new line there — only send via the button. Desktops keep Enter-to-send.
+  const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+  questionInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !isTouchDevice) { e.preventDefault(); askQuestion(); }
+  });
+  questionInput.addEventListener('input', () => {
+    questionInput.style.height = 'auto';
+    questionInput.style.height = Math.min(questionInput.scrollHeight, 90) + 'px';
+  });
+
+  (async function init() {
+    await loadManifest();
+    renderShelf();
+    if (books.length) await selectBook(books[0].id);
+    else await renderMain();
+  })();
+})();
+</script>
+</body>
+</html>
